@@ -89,6 +89,19 @@ class Prefs(context: Context) {
     private val CALENDAR_APP_USER = "CALENDAR_APP_USER"
     private val CALENDAR_APP_CLASS_NAME = "CALENDAR_APP_CLASS_NAME"
 
+    // Widget preferences
+    private val WIDGETS_ENABLED = "WIDGETS_ENABLED"
+    private val WIDGET_IDS = "WIDGET_IDS"
+    private val WIDGET_POSITION = "WIDGET_POSITION" // 0 = top, 1 = middle, 2 = bottom
+    private val WIDGET_SIZES = "WIDGET_SIZES" // Store widget sizes as JSON
+    private val WIDGET_POSITIONS = "WIDGET_POSITIONS" // Store widget positions as JSON
+
+    // Password protection preferences
+    private val PASSWORD_PROTECTION_ENABLED = "PASSWORD_PROTECTION_ENABLED"
+    private val SECRET_APPS_PASSWORD = "SECRET_APPS_PASSWORD"
+    private val SECRET_APPS_PASSWORD_HASH = "SECRET_APPS_PASSWORD_HASH"
+    private val SECRET_APPS_PASSWORD_SET = "SECRET_APPS_PASSWORD_SET"
+
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_FILENAME, 0);
 
     var firstOpen: Boolean
@@ -398,6 +411,44 @@ class Prefs(context: Context) {
     var calendarAppClassName: String?
         get() = prefs.getString(CALENDAR_APP_CLASS_NAME, "").toString()
         set(value) = prefs.edit().putString(CALENDAR_APP_CLASS_NAME, value).apply()
+
+    // Widget preferences
+    var widgetsEnabled: Boolean
+        get() = prefs.getBoolean(WIDGETS_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(WIDGETS_ENABLED, value).apply()
+
+    var widgetIds: MutableSet<String>
+        get() = prefs.getStringSet(WIDGET_IDS, mutableSetOf()) as MutableSet<String>
+        set(value) = prefs.edit().putStringSet(WIDGET_IDS, value).apply()
+
+    var widgetPosition: Int
+        get() = prefs.getInt(WIDGET_POSITION, 1) // Default to middle
+        set(value) = prefs.edit().putInt(WIDGET_POSITION, value).apply()
+
+    var widgetSizes: String
+        get() = prefs.getString(WIDGET_SIZES, "{}").toString()
+        set(value) = prefs.edit().putString(WIDGET_SIZES, value).apply()
+
+    var widgetPositions: String
+        get() = prefs.getString(WIDGET_POSITIONS, "{}").toString()
+        set(value) = prefs.edit().putString(WIDGET_POSITIONS, value).apply()
+
+    // Password protection properties
+    var passwordProtectionEnabled: Boolean
+        get() = prefs.getBoolean(PASSWORD_PROTECTION_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(PASSWORD_PROTECTION_ENABLED, value).apply()
+
+    var secretAppsPassword: String
+        get() = prefs.getString(SECRET_APPS_PASSWORD, "").toString()
+        set(value) = prefs.edit().putString(SECRET_APPS_PASSWORD, value).apply()
+
+    var secretAppsPasswordHash: String
+        get() = prefs.getString(SECRET_APPS_PASSWORD_HASH, "").toString()
+        set(value) = prefs.edit().putString(SECRET_APPS_PASSWORD_HASH, value).apply()
+
+    var secretAppsPasswordSet: Boolean
+        get() = prefs.getBoolean(SECRET_APPS_PASSWORD_SET, false)
+        set(value) = prefs.edit().putBoolean(SECRET_APPS_PASSWORD_SET, value).apply()
 
     fun getAppName(location: Int): String {
         return when (location) {

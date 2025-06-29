@@ -38,7 +38,10 @@ import app.olauncher.helper.rateApp
 import app.olauncher.helper.setPlainWallpaper
 import app.olauncher.helper.shareApp
 import app.olauncher.helper.showToast
+import app.olauncher.helper.PasswordHelper
 import app.olauncher.listener.DeviceAdmin
+import android.app.AlertDialog
+import android.widget.EditText
 
 class SettingsFragment : Fragment(), View.OnClickListener, View.OnLongClickListener {
 
@@ -81,6 +84,8 @@ class SettingsFragment : Fragment(), View.OnClickListener, View.OnLongClickListe
         populateSwipeApps()
         populateSwipeDownAction()
         populateActionHints()
+        populateWidgetSettings()
+        populatePasswordProtectionSettings()
         initClickListeners()
         initObservers()
     }
@@ -165,6 +170,21 @@ class SettingsFragment : Fragment(), View.OnClickListener, View.OnLongClickListe
             R.id.github -> requireContext().openUrl(Constants.URL_OLAUNCHER_GITHUB)
             R.id.privacy -> requireContext().openUrl(Constants.URL_OLAUNCHER_PRIVACY)
             R.id.footer -> requireContext().openUrl(Constants.URL_PLAY_STORE_DEV)
+            
+            // Widget settings
+            R.id.widgetsEnabled -> toggleWidgetsEnabled()
+            R.id.widgetPosition -> binding.widgetPositionSelectLayout?.visibility = View.VISIBLE
+            R.id.widgetPositionTop -> updateWidgetPosition(0)
+            R.id.widgetPositionMiddle -> updateWidgetPosition(1)
+            R.id.widgetPositionBottom -> updateWidgetPosition(2)
+            R.id.addWidget -> addWidget()
+            R.id.manageWidgets -> manageWidgets()
+            R.id.removeAllWidgets -> removeAllWidgets()
+            
+            // Password protection click listeners
+            R.id.passwordProtectionEnabled -> togglePasswordProtection()
+            R.id.setPassword -> setPassword()
+            R.id.changePassword -> changePassword()
         }
     }
 
@@ -257,6 +277,21 @@ class SettingsFragment : Fragment(), View.OnClickListener, View.OnLongClickListe
         binding.swipeLeftApp.setOnLongClickListener(this)
         binding.swipeRightApp.setOnLongClickListener(this)
         binding.toggleLock.setOnLongClickListener(this)
+        
+        // Widget click listeners
+        binding.widgetsEnabled?.setOnClickListener(this)
+        binding.widgetPosition?.setOnClickListener(this)
+        binding.widgetPositionTop?.setOnClickListener(this)
+        binding.widgetPositionMiddle?.setOnClickListener(this)
+        binding.widgetPositionBottom?.setOnClickListener(this)
+        binding.addWidget?.setOnClickListener(this)
+        binding.manageWidgets?.setOnClickListener(this)
+        binding.removeAllWidgets?.setOnClickListener(this)
+        
+        // Password protection click listeners
+        binding.passwordProtectionEnabled?.setOnClickListener(this)
+        binding.setPassword?.setOnClickListener(this)
+        binding.changePassword?.setOnClickListener(this)
     }
 
     private fun initObservers() {
@@ -357,6 +392,53 @@ class SettingsFragment : Fragment(), View.OnClickListener, View.OnLongClickListe
             requireContext().showToast(getString(R.string.no_hidden_apps))
             return
         }
+        
+        // Check if password protection is enabled
+        if (prefs.passwordProtectionEnabled) {
+            showPasswordVerificationDialog()
+        } else {
+            navigateToHiddenApps()
+        }
+    }
+
+    private fun showPasswordVerificationDialog() {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_password_verification, null)
+        val passwordInput = dialogView.findViewById<EditText>(R.id.passwordInput)
+        
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.unlock_secret_apps))
+            .setView(dialogView)
+            .setPositiveButton("OK", null)
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton.setOnClickListener {
+                val password = passwordInput.text.toString()
+                
+                if (password.isEmpty()) {
+                    requireContext().showToast(getString(R.string.enter_password))
+                    return@setOnClickListener
+                }
+                
+                // Verify password
+                val salt = prefs.secretAppsPassword
+                val storedHash = prefs.secretAppsPasswordHash
+                
+                if (PasswordHelper.verifyPassword(password, storedHash, salt)) {
+                    dialog.dismiss()
+                    navigateToHiddenApps()
+                } else {
+                    requireContext().showToast(getString(R.string.password_incorrect))
+                }
+            }
+        }
+        
+        dialog.show()
+    }
+    
+    private fun navigateToHiddenApps() {
         viewModel.getHiddenApps()
         findNavController().navigate(
             R.id.action_settingsFragment_to_appListFragment,
@@ -630,6 +712,288 @@ class SettingsFragment : Fragment(), View.OnClickListener, View.OnLongClickListe
             prefs.proMessageShown = true
             viewModel.showDialog.postValue(Constants.Dialog.PRO_MESSAGE)
         }
+    }
+
+    private fun populateWidgetSettings() {
+        // Populate widgets enabled/disabled text
+        binding.widgetsEnabled?.text = if (prefs.widgetsEnabled) getString(R.string.on) else getString(R.string.off)
+        
+        // Populate widget position text
+        populateWidgetPosition()
+    }
+
+    private fun toggleWidgetsEnabled() {
+        prefs.widgetsEnabled = !prefs.widgetsEnabled
+        populateWidgetSettings()
+        
+        if (prefs.widgetsEnabled) {
+            requireContext().showToast(getString(R.string.widgets_enabled))
+        } else {
+            requireContext().showToast(getString(R.string.widgets_disabled))
+        }
+    }
+
+    private fun updateWidgetPosition(position: Int) {
+        prefs.widgetPosition = position
+        binding.widgetPositionSelectLayout?.visibility = View.GONE
+        populateWidgetPosition()
+        
+        // Navigate back to home screen and update widget layout
+        findNavController().navigateUp()
+        
+        // Get reference to HomeFragment and update widget layout
+        val homeFragment = parentFragmentManager.fragments.find { it is HomeFragment } as? HomeFragment
+        homeFragment?.onWidgetPositionChanged()
+    }
+
+    private fun populateWidgetPosition() {
+        binding.widgetPosition?.text = when (prefs.widgetPosition) {
+            0 -> getString(R.string.top)
+            1 -> getString(R.string.middle)
+            2 -> getString(R.string.bottom)
+            else -> getString(R.string.middle)
+        }
+    }
+
+    private fun addWidget() {
+        if (!prefs.widgetsEnabled) {
+            requireContext().showToast(getString(R.string.enable_widgets))
+            return
+        }
+        
+        // Navigate back to home screen and trigger widget addition
+        findNavController().navigateUp()
+        
+        // Get reference to HomeFragment and call addWidget
+        val homeFragment = parentFragmentManager.fragments.find { it is HomeFragment } as? HomeFragment
+        homeFragment?.addWidget()
+    }
+
+    private fun manageWidgets() {
+        if (!prefs.widgetsEnabled) {
+            requireContext().showToast(getString(R.string.widgets_disabled))
+            return
+        }
+        
+        // Navigate back to home screen and trigger widget management
+        findNavController().navigateUp()
+        
+        // Get reference to HomeFragment and call showWidgetList
+        val homeFragment = parentFragmentManager.fragments.find { it is HomeFragment } as? HomeFragment
+        homeFragment?.showWidgetList()
+    }
+
+    private fun removeAllWidgets() {
+        if (!prefs.widgetsEnabled) {
+            requireContext().showToast(getString(R.string.widgets_disabled))
+            return
+        }
+        
+        // Navigate back to home screen and trigger widget removal
+        findNavController().navigateUp()
+        
+        // Get reference to HomeFragment and call removeAllWidgets
+        val homeFragment = parentFragmentManager.fragments.find { it is HomeFragment } as? HomeFragment
+        homeFragment?.removeAllWidgets()
+        
+        requireContext().showToast(getString(R.string.widget_removed))
+    }
+
+    private fun togglePasswordProtection() {
+        if (prefs.passwordProtectionEnabled) {
+            // Disable password protection - require password verification first
+            showPasswordVerificationForDisable()
+        } else {
+            // Enable password protection
+            if (prefs.secretAppsPasswordSet) {
+                prefs.passwordProtectionEnabled = true
+                requireContext().showToast(getString(R.string.password_protection_enabled))
+            } else {
+                // Need to set password first
+                requireContext().showToast(getString(R.string.set_password_first))
+                setPassword()
+                return
+            }
+        }
+        populatePasswordProtectionSettings()
+    }
+
+    private fun showPasswordVerificationForDisable() {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_password_verification, null)
+        val passwordInput = dialogView.findViewById<EditText>(R.id.passwordInput)
+        
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.disable_password_protection))
+            .setMessage(getString(R.string.enter_password_to_disable))
+            .setView(dialogView)
+            .setPositiveButton("OK", null)
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton.setOnClickListener {
+                val password = passwordInput.text.toString()
+                
+                if (password.isEmpty()) {
+                    requireContext().showToast(getString(R.string.enter_password))
+                    return@setOnClickListener
+                }
+                
+                // Verify password
+                val salt = prefs.secretAppsPassword
+                val storedHash = prefs.secretAppsPasswordHash
+                
+                if (PasswordHelper.verifyPassword(password, storedHash, salt)) {
+                    // Password correct - disable protection
+                    prefs.passwordProtectionEnabled = false
+                    requireContext().showToast(getString(R.string.password_protection_disabled))
+                    populatePasswordProtectionSettings()
+                    dialog.dismiss()
+                } else {
+                    requireContext().showToast(getString(R.string.password_incorrect))
+                }
+            }
+        }
+        
+        dialog.show()
+    }
+
+    private fun setPassword() {
+        showPasswordDialog(true)
+    }
+
+    private fun changePassword() {
+        if (!prefs.secretAppsPasswordSet) {
+            requireContext().showToast(getString(R.string.set_password_first))
+            return
+        }
+        showPasswordChangeDialog()
+    }
+
+    private fun showPasswordChangeDialog() {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_password_change, null)
+        val oldPasswordInput = dialogView.findViewById<EditText>(R.id.oldPasswordInput)
+        val newPasswordInput = dialogView.findViewById<EditText>(R.id.newPasswordInput)
+        val confirmPasswordInput = dialogView.findViewById<EditText>(R.id.confirmPasswordInput)
+        
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.change_password))
+            .setView(dialogView)
+            .setPositiveButton("OK", null)
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton.setOnClickListener {
+                val oldPassword = oldPasswordInput.text.toString()
+                val newPassword = newPasswordInput.text.toString()
+                val confirmPassword = confirmPasswordInput.text.toString()
+                
+                // Verify old password first
+                val salt = prefs.secretAppsPassword
+                val storedHash = prefs.secretAppsPasswordHash
+                
+                if (!PasswordHelper.verifyPassword(oldPassword, storedHash, salt)) {
+                    requireContext().showToast(getString(R.string.old_password_incorrect))
+                    return@setOnClickListener
+                }
+                
+                // Validate new password
+                if (!PasswordHelper.isPasswordValid(newPassword)) {
+                    if (newPassword.length < 4) {
+                        requireContext().showToast(getString(R.string.password_too_short))
+                    } else {
+                        requireContext().showToast(getString(R.string.password_too_long))
+                    }
+                    return@setOnClickListener
+                }
+                
+                if (newPassword != confirmPassword) {
+                    requireContext().showToast(getString(R.string.password_mismatch))
+                    return@setOnClickListener
+                }
+                
+                // Hash and store new password
+                val newSalt = PasswordHelper.generateSalt()
+                val newHashedPassword = PasswordHelper.hashPassword(newPassword, newSalt)
+                
+                prefs.secretAppsPasswordHash = newHashedPassword
+                prefs.secretAppsPassword = newSalt
+                prefs.secretAppsPasswordSet = true
+                
+                requireContext().showToast(getString(R.string.password_changed_successfully))
+                dialog.dismiss()
+            }
+        }
+        
+        dialog.show()
+    }
+
+    private fun showPasswordDialog(isNewPassword: Boolean) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_password, null)
+        val passwordInput = dialogView.findViewById<EditText>(R.id.passwordInput)
+        val confirmPasswordInput = dialogView.findViewById<EditText>(R.id.confirmPasswordInput)
+        
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(if (isNewPassword) getString(R.string.set_password) else getString(R.string.change_password))
+            .setView(dialogView)
+            .setPositiveButton("OK", null)
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton.setOnClickListener {
+                val password = passwordInput.text.toString()
+                val confirmPassword = confirmPasswordInput.text.toString()
+                
+                if (!PasswordHelper.isPasswordValid(password)) {
+                    if (password.length < 4) {
+                        requireContext().showToast(getString(R.string.password_too_short))
+                    } else {
+                        requireContext().showToast(getString(R.string.password_too_long))
+                    }
+                    return@setOnClickListener
+                }
+                
+                if (password != confirmPassword) {
+                    requireContext().showToast(getString(R.string.password_mismatch))
+                    return@setOnClickListener
+                }
+                
+                // Hash and store password
+                val salt = PasswordHelper.generateSalt()
+                val hashedPassword = PasswordHelper.hashPassword(password, salt)
+                
+                prefs.secretAppsPasswordHash = hashedPassword
+                prefs.secretAppsPassword = salt // Store salt in password field for simplicity
+                prefs.secretAppsPasswordSet = true
+                
+                if (!prefs.passwordProtectionEnabled) {
+                    prefs.passwordProtectionEnabled = true
+                }
+                
+                requireContext().showToast(
+                    if (isNewPassword) getString(R.string.password_set_successfully)
+                    else getString(R.string.password_changed_successfully)
+                )
+                
+                populatePasswordProtectionSettings()
+                dialog.dismiss()
+            }
+        }
+        
+        dialog.show()
+    }
+
+    private fun populatePasswordProtectionSettings() {
+        binding.passwordProtectionEnabled?.text = if (prefs.passwordProtectionEnabled) getString(R.string.on) else getString(R.string.off)
+        
+        // Show/hide password options based on whether password is set
+        binding.setPassword?.visibility = if (prefs.secretAppsPasswordSet) View.GONE else View.VISIBLE
+        binding.changePassword?.visibility = if (prefs.secretAppsPasswordSet) View.VISIBLE else View.GONE
     }
 
     override fun onDestroyView() {

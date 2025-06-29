@@ -44,18 +44,35 @@ import app.olauncher.helper.setPlainWallpaperByTheme
 import app.olauncher.helper.showToast
 import app.olauncher.listener.OnSwipeTouchListener
 import app.olauncher.listener.ViewSwipeTouchListener
+import app.olauncher.helper.WidgetHelper
+import android.appwidget.AppWidgetHostView
+import android.appwidget.AppWidgetManager
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.widget.LinearLayout
+import android.app.AlertDialog
+import app.olauncher.ui.ResizableMovableLayout
+import android.util.Log
+import app.olauncher.helper.WidgetSizeHelper
 
 class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener {
 
     private lateinit var prefs: Prefs
     private lateinit var viewModel: MainViewModel
     private lateinit var deviceManager: DevicePolicyManager
+    private lateinit var widgetHelper: WidgetHelper
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
+
+    // Widget management
+    private var widgetPickerLauncher: ActivityResultLauncher<Intent>? = null
+    private var widgetConfigureLauncher: ActivityResultLauncher<Intent>? = null
+    private val widgetViews = mutableMapOf<Int, AppWidgetHostView>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -70,19 +87,34 @@ class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener 
         } ?: throw Exception("Invalid Activity")
 
         deviceManager = context?.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        widgetHelper = WidgetHelper(requireContext())
 
+        initWidgetLaunchers()
         initObservers()
         setHomeAlignment(prefs.homeAlignment)
         initSwipeTouchListener()
         initClickListeners()
+
+        // Add long-press to widgetArea to remove widgets
+        binding.widgetArea?.setOnLongClickListener {
+            showRemoveWidgetDialog()
+            true
+        }
     }
 
     override fun onResume() {
         super.onResume()
         populateHomeScreen(false)
+        loadExistingWidgets()
+        widgetHelper.startListening()
         viewModel.isOlauncherDefault()
         if (prefs.showStatusBar) showStatusBar()
         else hideStatusBar()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        widgetHelper.stopListening()
     }
 
     override fun onClick(view: View) {
@@ -144,20 +176,26 @@ class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener 
                 prefs.clockAppClassName = ""
                 prefs.clockAppUser = ""
             }
-
             R.id.date -> {
                 showAppList(Constants.FLAG_SET_CALENDAR_APP)
                 prefs.calendarAppPackage = ""
                 prefs.calendarAppClassName = ""
                 prefs.calendarAppUser = ""
             }
-
             R.id.setDefaultLauncher -> {
                 prefs.hideSetDefaultLauncher = true
                 binding.setDefaultLauncher.visibility = View.GONE
                 if (viewModel.isOlauncherDefault.value != true) {
                     requireContext().showToast(R.string.set_as_default_launcher)
                     findNavController().navigate(R.id.action_mainFragment_to_settingsFragment)
+                }
+            }
+            R.id.mainLayout -> {
+                try {
+                    findNavController().navigate(R.id.action_mainFragment_to_settingsFragment)
+                    viewModel.firstOpen(false)
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -200,7 +238,8 @@ class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener 
 
     private fun initSwipeTouchListener() {
         val context = requireContext()
-        binding.mainLayout.setOnTouchListener(getSwipeGestureListener(context))
+        // Remove the swipe touch listener from mainLayout to avoid conflicts with long-press
+        // binding.mainLayout.setOnTouchListener(getSwipeGestureListener(context))
         binding.homeApp1.setOnTouchListener(getViewSwipeTouchListener(context, binding.homeApp1))
         binding.homeApp2.setOnTouchListener(getViewSwipeTouchListener(context, binding.homeApp2))
         binding.homeApp3.setOnTouchListener(getViewSwipeTouchListener(context, binding.homeApp3))
@@ -220,6 +259,11 @@ class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener 
         binding.setDefaultLauncher.setOnClickListener(this)
         binding.setDefaultLauncher.setOnLongClickListener(this)
         binding.tvScreenTime.setOnClickListener(this)
+        binding.widgetHint?.setOnClickListener {
+            addWidget()
+        }
+        // Restore long-press listener to main layout for opening settings
+        binding.mainLayout.setOnLongClickListener(this)
     }
 
     private fun setHomeAlignment(horizontalGravity: Int = prefs.homeAlignment) {
@@ -287,6 +331,15 @@ class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
             populateScreenTime()
+
+        // Show widget hint if widgets are enabled
+        if (prefs.widgetsEnabled) {
+            binding.widgetHint?.visibility = View.VISIBLE
+            // Make hint more prominent
+            binding.widgetHint?.alpha = 0.8f
+        } else {
+            binding.widgetHint?.visibility = View.GONE
+        }
 
         val homeAppsNum = prefs.homeAppsNum
         if (homeAppsNum == 0) return
@@ -512,7 +565,9 @@ class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener 
         }
     }
 
-    private fun showLongPressToast() = requireContext().showToast(getString(R.string.long_press_to_select_app))
+    private fun showLongPressToast() {
+        requireContext().showToast(R.string.long_press_to_set_app)
+    }
 
     private fun textOnClick(view: View) = onClick(view)
 
@@ -602,5 +657,425 @@ class HomeFragment : Fragment(), View.OnClickListener, View.OnLongClickListener 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        requireContext().showToast("onActivityResult: $requestCode $resultCode")
+        
+        if (requestCode == 1001 && resultCode == Activity.RESULT_OK) {
+            val appWidgetId = data?.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+            
+            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                handleWidgetSelected(appWidgetId)
+            }
+        }
+    }
+
+    // Widget management methods
+    private fun initWidgetLaunchers() {
+        // Initialize widget picker launcher
+        widgetPickerLauncher = registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val data = result.data
+                val appWidgetId = data?.getIntExtra(
+                    AppWidgetManager.EXTRA_APPWIDGET_ID,
+                    AppWidgetManager.INVALID_APPWIDGET_ID
+                ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+                
+                if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    handleWidgetSelected(appWidgetId)
+                }
+            }
+        }
+        
+        // Initialize widget configuration launcher
+        widgetConfigureLauncher = registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val data = result.data
+                val appWidgetId = data?.getIntExtra(
+                    AppWidgetManager.EXTRA_APPWIDGET_ID,
+                    AppWidgetManager.INVALID_APPWIDGET_ID
+                ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+                
+                if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    handleWidgetConfigured(appWidgetId)
+                }
+            }
+        }
+    }
+
+    private fun handleWidgetSelected(appWidgetId: Int) {
+        val appWidgetInfo = widgetHelper.getWidgetInfo(appWidgetId)
+        if (appWidgetInfo != null) {
+            if (appWidgetInfo.configure != null) {
+                // Widget needs configuration
+                val configureIntent = widgetHelper.createWidgetConfigureIntent(appWidgetId)
+                configureIntent?.let { intent ->
+                    widgetConfigureLauncher?.launch(intent)
+                }
+            } else {
+                // Widget doesn't need configuration, add it directly
+                addWidgetToHome(appWidgetId)
+            }
+        }
+    }
+
+    private fun handleWidgetConfigured(appWidgetId: Int) {
+        addWidgetToHome(appWidgetId)
+    }
+
+    private fun addWidgetToHome(appWidgetId: Int) {
+        try {
+            if (widgetHelper.isWidgetInstalled(appWidgetId)) {
+                val widgetArea = binding.widgetArea
+                // Create widget view without adding to parent yet
+                val widgetView = widgetHelper.createWidgetView(appWidgetId, null)
+                if (widgetView != null && widgetArea != null) {
+                    // Create a simple wrapper (fallback to FrameLayout if ResizableMovableLayout causes issues)
+                    val wrapper = try {
+                        ResizableMovableLayout(requireContext()).apply {
+                            setWidgetId(appWidgetId)
+                        }
+                    } catch (e: Exception) {
+                        Log.w("HomeFragment", "Using fallback FrameLayout wrapper: ${e.message}")
+                        FrameLayout(requireContext())
+                    }
+                    
+                    // Adjust widget size and positioning based on widget position setting
+                    val (initialWidth, initialHeight, marginLeft) = when (prefs.widgetPosition) {
+                        0 -> { // Top - full size
+                            Triple(320, 520, 10)
+                        }
+                        1 -> { // Middle - smaller size
+                            Triple(280, 440, 20)
+                        }
+                        2 -> { // Bottom - smaller size
+                            Triple(260, 400, 30)
+                        }
+                        else -> Triple(320, 520, 10)
+                    }
+                    
+                    // Use MarginLayoutParams for proper resizing and moving
+                    val layoutParams = ViewGroup.MarginLayoutParams(initialWidth, initialHeight)
+                    layoutParams.leftMargin = marginLeft
+                    layoutParams.topMargin = 10 // Reduced from 25 to 10
+                    wrapper.layoutParams = layoutParams
+                    
+                    // Add long-press listener to delete this specific widget
+                    wrapper.setOnLongClickListener {
+                        showDeleteWidgetDialog(appWidgetId)
+                        true
+                    }
+                    
+                    // Add the widget view to the wrapper
+                    wrapper.addView(widgetView)
+                    
+                    // Add the wrapper to the widget area
+                    widgetArea.addView(wrapper)
+                    
+                    // Store the widget view reference
+                    widgetViews[appWidgetId] = widgetView
+                    
+                    // Save widget ID to preferences
+                    val currentWidgetIds = prefs.widgetIds.toMutableSet()
+                    currentWidgetIds.add(appWidgetId.toString())
+                    prefs.widgetIds = currentWidgetIds
+                    
+                    // Show widget container and update layout only if this is the first widget
+                    if (widgetViews.size == 1) {
+                        widgetArea.visibility = View.VISIBLE
+                        updateWidgetLayout()
+                        // Hide the widget hint when first widget is added
+                        binding.widgetHint?.visibility = View.GONE
+                        // Show resize instructions for the first widget
+                        requireContext().showToast(getString(R.string.widget_resize_help))
+                    }
+                    
+                    requireContext().showToast("Widget added successfully")
+                } else {
+                    requireContext().showToast("Failed to create widget view")
+                }
+            } else {
+                requireContext().showToast("Widget not installed")
+            }
+        } catch (e: Exception) {
+            Log.e("HomeFragment", "Error adding widget: ${e.message}")
+            requireContext().showToast("Error adding widget: ${e.message}")
+        }
+    }
+
+    private fun removeWidget(appWidgetId: Int) {
+        try {
+            val widgetView = widgetViews[appWidgetId]
+            if (widgetView != null) {
+                val widgetArea = binding.widgetArea
+                // Find and remove the wrapper (parent of the widget view)
+                val wrapper = widgetView.parent as? View
+                if (wrapper != null && widgetArea != null) {
+                    widgetArea.removeView(wrapper)
+                }
+                widgetViews.remove(appWidgetId)
+                widgetHelper.deleteAppWidgetId(appWidgetId)
+                
+                // Remove widget ID from preferences
+                val currentWidgetIds = prefs.widgetIds.toMutableSet()
+                currentWidgetIds.remove(appWidgetId.toString())
+                prefs.widgetIds = currentWidgetIds
+                
+                // Clean up saved sizes and positions for this widget
+                val currentSizes = WidgetSizeHelper.loadWidgetSizes(prefs.widgetSizes).toMutableMap()
+                currentSizes.remove(appWidgetId)
+                prefs.widgetSizes = WidgetSizeHelper.saveWidgetSizes(currentSizes)
+                
+                val currentPositions = WidgetSizeHelper.loadWidgetPositions(prefs.widgetPositions).toMutableMap()
+                currentPositions.remove(appWidgetId)
+                prefs.widgetPositions = WidgetSizeHelper.saveWidgetPositions(currentPositions)
+                
+                // Hide widget container if no widgets
+                if (widgetViews.isEmpty()) {
+                    widgetArea?.visibility = View.GONE
+                    // Show widget hint when no widgets are present
+                    binding.widgetHint?.visibility = View.VISIBLE
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("HomeFragment", "Error removing widget: ${e.message}")
+            requireContext().showToast("Error removing widget: ${e.message}")
+        }
+    }
+
+    private fun updateWidgetLayout() {
+        val parent = binding.mainLayout as LinearLayout
+        val widgetArea = binding.widgetArea
+        if (widgetArea != null && widgetViews.isNotEmpty()) {
+            parent.removeView(widgetArea)
+            
+            // Adjust widget area size based on position
+            val layoutParams = widgetArea.layoutParams as LinearLayout.LayoutParams
+            when (prefs.widgetPosition) {
+                0 -> { // Top - full size
+                    layoutParams.height = 580
+                    parent.addView(widgetArea, 1) // after widgetHint
+                }
+                1 -> { // Middle - smaller size
+                    layoutParams.height = 500
+                    parent.addView(widgetArea, parent.indexOfChild(binding.dateTimeLayout) + 1)
+                }
+                2 -> { // Bottom - smaller size
+                    layoutParams.height = 460
+                    parent.addView(widgetArea, parent.indexOfChild(binding.homeAppsLayout))
+                }
+            }
+            widgetArea.layoutParams = layoutParams
+            widgetArea.visibility = View.VISIBLE
+            
+            // Update existing widgets to match the new position
+            updateExistingWidgetSizes()
+        }
+    }
+
+    private fun updateExistingWidgetSizes() {
+        // Load saved sizes and positions
+        val savedSizes = WidgetSizeHelper.loadWidgetSizes(prefs.widgetSizes)
+        val savedPositions = WidgetSizeHelper.loadWidgetPositions(prefs.widgetPositions)
+        
+        for ((widgetId, widgetView) in widgetViews) {
+            val wrapper = widgetView.parent as? View
+            if (wrapper != null) {
+                val layoutParams = wrapper.layoutParams as? ViewGroup.MarginLayoutParams
+                if (layoutParams != null) {
+                    // Use saved size if available, otherwise use default based on position
+                    val savedSize = savedSizes[widgetId]
+                    if (savedSize != null) {
+                        layoutParams.width = savedSize.width
+                        layoutParams.height = savedSize.height
+                    } else {
+                        // Use default size based on position
+                        val (defaultWidth, defaultHeight) = when (prefs.widgetPosition) {
+                            0 -> Pair(320, 520) // Top - full size
+                            1 -> Pair(280, 440) // Middle - smaller size
+                            2 -> Pair(260, 400) // Bottom - smaller size
+                            else -> Pair(320, 520)
+                        }
+                        layoutParams.width = defaultWidth
+                        layoutParams.height = defaultHeight
+                    }
+                    
+                    // Use saved position if available, otherwise use default
+                    val savedPosition = savedPositions[widgetId]
+                    if (savedPosition != null) {
+                        layoutParams.leftMargin = savedPosition.leftMargin
+                        layoutParams.topMargin = savedPosition.topMargin
+                    } else {
+                        // Use default position based on widget position setting
+                        val (defaultMarginLeft, defaultMarginTop) = when (prefs.widgetPosition) {
+                            0 -> Pair(10, 10) // Top
+                            1 -> Pair(20, 10) // Middle
+                            2 -> Pair(30, 10) // Bottom
+                            else -> Pair(10, 10)
+                        }
+                        layoutParams.leftMargin = defaultMarginLeft
+                        layoutParams.topMargin = defaultMarginTop
+                    }
+                    
+                    wrapper.layoutParams = layoutParams
+                }
+            }
+        }
+    }
+
+    private fun loadExistingWidgets() {
+        if (prefs.widgetsEnabled) {
+            val widgetIds = prefs.widgetIds
+            for (widgetIdString in widgetIds) {
+                val widgetId = widgetIdString.toIntOrNull()
+                if (widgetId != null && widgetHelper.isWidgetInstalled(widgetId)) {
+                    addWidgetToHome(widgetId)
+                }
+            }
+            
+            // Show hint about widget functionality
+            if (widgetIds.isEmpty()) {
+                requireContext().showToast(getString(R.string.long_press_to_add_widget))
+                // Make widget hint more visible
+                binding.widgetHint?.visibility = View.VISIBLE
+                binding.widgetHint?.alpha = 1.0f
+            } else {
+                // Hide widget hint if widgets are already loaded
+                binding.widgetHint?.visibility = View.GONE
+                // Show resize help when widgets are present
+                requireContext().showToast(getString(R.string.widget_resize_help))
+            }
+        }
+    }
+
+    fun addWidget() {
+        requireContext().showToast("addWidget called")
+        if (prefs.widgetsEnabled) {
+            try {
+                // Use a simpler approach - directly launch the widget picker
+                val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK)
+                val appWidgetId = widgetHelper.allocateAppWidgetId()
+                intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                
+                // Launch the intent directly
+                startActivityForResult(intent, 1001)
+            } catch (e: Exception) {
+                requireContext().showToast("Error: ${e.message}")
+            }
+        } else {
+            requireContext().showToast("Please enable widgets in settings first")
+        }
+    }
+
+    fun removeAllWidgets() {
+        val widgetIds = widgetViews.keys.toList()
+        for (widgetId in widgetIds) {
+            removeWidget(widgetId)
+        }
+        prefs.widgetsEnabled = false
+        
+        // Clear all saved widget sizes and positions
+        prefs.widgetSizes = "{}"
+        prefs.widgetPositions = "{}"
+        
+        // Show widget hint again when all widgets are removed
+        binding.widgetHint?.visibility = View.VISIBLE
+        binding.widgetHint?.alpha = 1.0f
+    }
+    
+    // Debug function to help troubleshoot widget issues
+    fun debugWidgetInfo() {
+        val availableWidgets = widgetHelper.getAvailableWidgets()
+        requireContext().showToast("Widgets available: ${availableWidgets.size}")
+    }
+
+    // Debug function to test widget resizing
+    fun debugWidgetResizing() {
+        val widgetCount = widgetViews.size
+        requireContext().showToast("Active widgets: $widgetCount")
+        
+        if (widgetCount > 0) {
+            val firstWidget = widgetViews.values.first()
+            val wrapper = firstWidget.parent
+            if (wrapper is ResizableMovableLayout) {
+                requireContext().showToast("Widget is resizable")
+            } else {
+                requireContext().showToast("Widget is not resizable (using fallback)")
+            }
+        } else {
+            requireContext().showToast("No widgets to resize")
+        }
+    }
+
+    // Handle widget position changes
+    fun onWidgetPositionChanged() {
+        if (widgetViews.isNotEmpty()) {
+            updateWidgetLayout()
+        }
+    }
+
+    // Show list of all widgets with delete options
+    fun showWidgetList() {
+        if (widgetViews.isEmpty()) {
+            requireContext().showToast("No widgets to manage")
+            return
+        }
+
+        val widgetNames = mutableListOf<String>()
+        val widgetIds = mutableListOf<Int>()
+        
+        for ((widgetId, _) in widgetViews) {
+            val widgetInfo = widgetHelper.getWidgetInfo(widgetId)
+            val widgetName = widgetInfo?.loadLabel(requireContext().packageManager)?.toString() ?: "Unknown Widget"
+            widgetNames.add(widgetName)
+            widgetIds.add(widgetId)
+        }
+
+        val items = widgetNames.toTypedArray()
+        
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Manage Widgets")
+            .setItems(items) { _, which ->
+                val selectedWidgetId = widgetIds[which]
+                val selectedWidgetName = widgetNames[which]
+                showDeleteWidgetDialog(selectedWidgetId)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showRemoveWidgetDialog() {
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Remove Widget")
+            .setMessage("Do you want to remove all widgets?")
+            .setPositiveButton("Remove") { _, _ ->
+                removeAllWidgets()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showDeleteWidgetDialog(appWidgetId: Int) {
+        val widgetInfo = widgetHelper.getWidgetInfo(appWidgetId)
+        val widgetName = widgetInfo?.loadLabel(requireContext().packageManager)?.toString() ?: "Widget"
+        
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Remove Widget")
+            .setMessage("Do you want to remove \"$widgetName\"?")
+            .setPositiveButton("Remove") { _, _ ->
+                removeWidget(appWidgetId)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }

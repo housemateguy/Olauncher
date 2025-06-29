@@ -313,4 +313,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Clean up widget host when app is destroyed
+        try {
+            val widgetHelper = app.olauncher.helper.WidgetHelper(this)
+            widgetHelper.stopListening()
+        } catch (e: Exception) {
+            // Ignore exceptions during cleanup
+        }
+    }
 }

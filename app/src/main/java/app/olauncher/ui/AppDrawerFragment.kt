@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
@@ -71,7 +72,7 @@ class AppDrawerFragment : Fragment() {
         else if (flag in Constants.FLAG_SET_HOME_APP_1..Constants.FLAG_SET_CALENDAR_APP)
             binding.search.queryHint = "Please select an app"
         try {
-            val searchTextView = binding.search.findViewById<TextView>(R.id.search_src_text)
+            val searchTextView = binding.search.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)
             if (searchTextView != null) searchTextView.gravity = prefs.appLabelAlignment
         } catch (e: Exception) {
             e.printStackTrace()

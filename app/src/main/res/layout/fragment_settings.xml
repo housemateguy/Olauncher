@@ -472,6 +472,240 @@
 
             </LinearLayout>
 
+            <!-- Widget Settings Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/rounded_rect_shade_color"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="vertical"
+                android:padding="12dp"
+                tools:visibility="visible">
+
+                <TextView
+                    style="@style/TextLarge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/widgets"
+                    android:textColor="?attr/primaryColor" />
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:animateLayoutChanges="true">
+
+                    <TextView
+                        style="@style/TextSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:paddingVertical="8dp"
+                        android:text="@string/enable_widgets"
+                        android:textColor="?attr/primaryColor" />
+
+                    <TextView
+                        android:id="@+id/widgetsEnabled"
+                        style="@style/TextSmallBold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end|bottom"
+                        android:layout_marginEnd="4dp"
+                        android:padding="8dp"
+                        android:text="@string/off" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:animateLayoutChanges="true">
+
+                    <TextView
+                        style="@style/TextSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:paddingVertical="8dp"
+                        android:text="@string/widget_position"
+                        android:textColor="?attr/primaryColor" />
+
+                    <TextView
+                        android:id="@+id/widgetPosition"
+                        style="@style/TextSmallBold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end|bottom"
+                        android:layout_marginEnd="4dp"
+                        android:padding="8dp"
+                        android:text="@string/middle" />
+
+                    <!-- Widget position select layout-->
+                    <LinearLayout
+                        android:id="@+id/widgetPositionSelectLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:animateLayoutChanges="true"
+                        android:background="@drawable/rounded_primary_gradient"
+                        android:elevation="8dp"
+                        android:orientation="horizontal"
+                        android:outlineAmbientShadowColor="@color/colorPrimaryDark"
+                        android:outlineSpotShadowColor="@color/colorPrimaryDark"
+                        android:paddingHorizontal="12dp"
+                        android:paddingVertical="2dp"
+                        android:visibility="gone"
+                        tools:ignore="UnusedAttribute">
+
+                        <TextView
+                            android:id="@+id/widgetPositionTop"
+                            style="@style/TextSmallBold"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:paddingVertical="6dp"
+                            android:text="@string/top" />
+
+                        <TextView
+                            android:id="@+id/widgetPositionMiddle"
+                            style="@style/TextSmallBold"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:paddingVertical="6dp"
+                            android:text="@string/middle" />
+
+                        <TextView
+                            android:id="@+id/widgetPositionBottom"
+                            style="@style/TextSmallBold"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:paddingVertical="6dp"
+                            android:text="@string/bottom" />
+
+                    </LinearLayout>
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/addWidget"
+                    style="@style/TextSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp"
+                    android:drawablePadding="8dp"
+                    android:gravity="center"
+                    android:text="@string/add_widget" />
+
+                <TextView
+                    android:id="@+id/manageWidgets"
+                    style="@style/TextSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp"
+                    android:drawablePadding="8dp"
+                    android:gravity="center"
+                    android:text="@string/manage_widgets" />
+
+                <TextView
+                    android:id="@+id/removeAllWidgets"
+                    style="@style/TextSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp"
+                    android:drawablePadding="8dp"
+                    android:gravity="center"
+                    android:text="@string/remove_all_widgets" />
+
+            </LinearLayout>
+
+            <!-- Password Protection Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/rounded_rect_shade_color"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:orientation="vertical"
+                android:padding="12dp"
+                tools:visibility="visible">
+
+                <TextView
+                    style="@style/TextLarge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/password_protection"
+                    android:textColor="?attr/primaryColor" />
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:animateLayoutChanges="true">
+
+                    <TextView
+                        style="@style/TextSmall"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:paddingVertical="8dp"
+                        android:text="@string/enable_password_protection"
+                        android:textColor="?attr/primaryColor" />
+
+                    <TextView
+                        android:id="@+id/passwordProtectionEnabled"
+                        style="@style/TextSmallBold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end|bottom"
+                        android:layout_marginEnd="4dp"
+                        android:padding="8dp"
+                        android:text="@string/off" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/setPassword"
+                    style="@style/TextSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp"
+                    android:drawablePadding="8dp"
+                    android:gravity="center"
+                    android:text="@string/set_password" />
+
+                <TextView
+                    android:id="@+id/changePassword"
+                    style="@style/TextSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp"
+                    android:drawablePadding="8dp"
+                    android:gravity="center"
+                    android:text="@string/change_password" />
+
+            </LinearLayout>
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

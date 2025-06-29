@@ -2,8 +2,8 @@
     <string name="app_name" translatable="false">Olauncher</string>
     <string name="github" translatable="false">Github</string>
     <string name="lock_layout_description" translatable="false">lock layout description to be used a unique id to lock screen</string>
-    <string name="olauncher_pro" translatable="false">Olauncher Pro</string>
-    <string name="digital_minimalism" translatable="false"><u>Digital Minimalism</u></string>
+    <string name="olauncher_pro" translatable="false">Stop Going Through My Phone</string>
+    <string name="digital_minimalism" translatable="false"><u>Goku is the best</u></string>
     <string name="day_battery" formatted="false" translatable="false">%s, %d%%</string>
     <string name="tag_0" translatable="false">0</string>
     <string name="tag_1" translatable="false">1</string>
@@ -155,4 +155,46 @@
     <string name="alignment_changed">Alignment changed ✅</string>
     <string name="home_screen">Home screen</string>
     <string name="hey">Hey</string>
+    
+    <!-- Widget strings -->
+    <string name="widgets">Widgets</string>
+    <string name="enable_widgets">Enable widgets</string>
+    <string name="widget_position">Widget position</string>
+    <string name="add_widget">Add widget</string>
+    <string name="remove_all_widgets">Remove all widgets</string>
+    <string name="top">Top</string>
+    <string name="middle">Middle</string>
+    <string name="bottom">Bottom</string>
+    <string name="widget_added">Widget added</string>
+    <string name="widget_removed">Widget removed</string>
+    <string name="widgets_disabled">Widgets disabled</string>
+    <string name="widgets_enabled">Widgets enabled</string>
+    <string name="long_press_to_set_app">Long press to set app</string>
+    <string name="long_press_to_add_widget">Tap here to add a widget</string>
+    <string name="widget_resize_help">Drag to move, drag corner to resize, long press to delete</string>
+    <string name="manage_widgets">Manage widgets</string>
+    <string name="long_press_to_delete_widget">Long press to delete widget</string>
+    <string name="password_protection">Password Protection</string>
+    <string name="enable_password_protection">Enable password protection</string>
+    <string name="set_password">Set password</string>
+    <string name="change_password">Change password</string>
+    <string name="enter_password">Enter password</string>
+    <string name="confirm_password">Confirm password</string>
+    <string name="enter_old_password">Enter old password</string>
+    <string name="enter_new_password">Enter new password</string>
+    <string name="confirm_new_password">Confirm new password</string>
+    <string name="old_password_incorrect">Old password is incorrect</string>
+    <string name="password_mismatch">Passwords don\'t match</string>
+    <string name="password_too_short">Password must be at least 4 characters</string>
+    <string name="password_too_long">Password must be 20 characters or less</string>
+    <string name="password_incorrect">Incorrect password</string>
+    <string name="password_set_successfully">Password set successfully</string>
+    <string name="password_changed_successfully">Password changed successfully</string>
+    <string name="password_protection_disabled">Password protection disabled</string>
+    <string name="password_protection_enabled">Password protection enabled</string>
+    <string name="disable_password_protection">Disable Password Protection</string>
+    <string name="enter_password_to_disable">Enter your password to disable password protection</string>
+    <string name="set_password_first">Please set a password first</string>
+    <string name="secret_apps">Secret Apps</string>
+    <string name="unlock_secret_apps">Unlock Secret Apps</string>
 </resources>

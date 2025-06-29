@@ -1,12 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mainLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:animateLayoutChanges="true"
     android:orientation="vertical"
+    android:animateLayoutChanges="true"
     tools:context=".ui.HomeFragment">
+
+    <!-- Widget hint text -->
+    <TextView
+        android:id="@+id/widgetHint"
+        style="@style/TextSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="20dp"
+        android:text="@string/long_press_to_add_widget"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <!-- Widget area for resizable/movable widgets -->
+    <FrameLayout
+        android:id="@+id/widgetArea"
+        android:layout_width="300dp"
+        android:layout_height="8000dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_area_bg"
+        android:visibility="visible" />
 
     <!-- Placeholder layout for locking screen-->
     <FrameLayout
@@ -69,7 +90,8 @@
     <LinearLayout
         android:id="@+id/homeAppsLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginHorizontal="74dp"
         android:gravity="center_vertical"
         android:orientation="vertical"
@@ -190,4 +212,4 @@
         android:maxLines="1"
         android:text="@string/set_as_default_launcher_u"
         android:visibility="gone" />
-</FrameLayout>
+</LinearLayout>

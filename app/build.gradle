@@ -62,4 +62,5 @@ dependencies {
     //Material dependency
     implementation libs.material
 
+    implementation 'androidx.appcompat:appcompat:1.6.1'
 }
