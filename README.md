@@ -6,7 +6,37 @@
 
 AF stands for Ad-Free :D
 
-## 🆕 Enhanced Features
+## 📸 Screenshots
+
+### **Home Screen with Widgets**
+![Olauncher Enhanced Home Screen](img/screenshot_1.png)
+
+*Enhanced home screen showing resizable widgets with visual indicators*
+
+### **Widget Management & Settings**
+![Widget Settings and Management](img/screenshot_2.png)
+
+*Widget settings panel and management interface*
+
+### **Advanced Features & Customization**
+![Advanced Features](img/screenshot_3.png)
+
+*Advanced customization options and enhanced features*
+
+### **Widget Features**
+- **Resize Handles**: Gray borders and diagonal lines in bottom-right corner
+- **Move Indicators**: Blue borders during drag operations
+- **Delete Options**: Red X indicators for widget removal
+- **Smart Layout**: Widget area adapts to position setting
+
+### **Password Protection**
+- **Secure Access**: Password verification for hidden apps
+- **Settings Integration**: Password protection controls in settings
+- **Visual Security**: Clear indication of protected features
+
+*Screenshots showcase the enhanced widget system, settings management, and advanced customization features.*
+
+## 🎮 Enhanced Features
 
 ### 📱 **Advanced Widget System**
 - **Resizable & Movable Widgets**: Drag to resize and move widgets anywhere on the home screen
